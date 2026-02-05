@@ -18,8 +18,8 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(
   cors({
-    origin: "http://localhost:5173", // frontend URL
-    credentials: true,
+     origin: process.env.CLIENT_URL, // <- your Vercel frontend URL
+  credentials: true,       
   })
 );
 
@@ -37,7 +37,7 @@ app.use("/api/message", require("./src/routes/messageRoutes"));
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: "https://chat-sphere-6l9f.vercel.app/",
     credentials: true,
   },
 });
