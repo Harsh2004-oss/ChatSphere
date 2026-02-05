@@ -21,17 +21,17 @@ app.use(cookieParser());
 
 // ✅ CORS for API routes + credentials
 const corsOptions = {
-  origin: process.env.CLIENT_URL, // frontend URL
+  origin: process.env.CLIENT_URL || "*", // frontend URL
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
 
-// Handle preflight for all routes safely
+// ✅ Handle preflight OPTIONS requests globally
 app.use((req, res, next) => {
   if (req.method === "OPTIONS") {
-    res.header("Access-Control-Allow-Origin", process.env.CLIENT_URL);
+    res.header("Access-Control-Allow-Origin", process.env.CLIENT_URL || "*");
     res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
     return res.sendStatus(200);
@@ -90,7 +90,6 @@ io.on("connection", (socket) => {
 
   socket.on("send-message", async (msg) => {
     const { from, to, text, file, fileType } = msg;
-
     try {
       const savedMessage = await Message.create({
         from,
