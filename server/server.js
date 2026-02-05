@@ -4,6 +4,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const http = require("http");
 const { Server } = require("socket.io");
+const path = require("path");
 require("dotenv").config();
 
 // 🔹 Models
@@ -16,10 +17,11 @@ const app = express();
 ========================= */
 app.use(express.json());
 app.use(cookieParser());
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL, // frontend URL from .env
-    credentials: true,
+    origin: process.env.FRONTEND_URL, // frontend URL (Vercel)
+    credentials: true,                // needed for cookies
   })
 );
 
@@ -32,12 +34,23 @@ app.use("/api/friend-request", require("./src/routes/friendRequestRoutes"));
 app.use("/api/message", require("./src/routes/messageRoutes"));
 
 /* =========================
+   SERVE VITE FRONTEND
+========================= */
+const clientDistPath = path.join(__dirname, "../Client/dist"); // adjust if needed
+app.use(express.static(clientDistPath));
+
+// Catch-all for React Router
+app.get("*", (req, res) => {
+  res.sendFile(path.join(clientDistPath, "index.html"));
+});
+
+/* =========================
    SERVER + SOCKET
 ========================= */
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL, // use .env here too
+    origin: process.env.FRONTEND_URL,
     credentials: true,
   },
 });

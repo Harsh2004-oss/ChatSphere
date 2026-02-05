@@ -5,7 +5,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': 'http://localhost:5000',
+      '/api': 'http://localhost:5000', // For local dev only
     },
   },
+  build: {
+    outDir: 'dist', // required for Netlify
+  },
+  base: '/', // ensures paths work correctly on Netlify
 });

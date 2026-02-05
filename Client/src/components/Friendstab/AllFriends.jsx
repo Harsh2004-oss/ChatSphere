@@ -21,30 +21,45 @@ export default function AllFriends({ searchQuery }) {
   useEffect(() => {
     if (!authUser) return;
 
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        // 1️⃣ All users except self
-        const resUsers = await api.get("/api/user/all");
-        setUsers(resUsers.data.filter(u => u._id !== authUser._id));
+ const fetchData = async () => {
+  if (!authUser) return;
 
-        // 2️⃣ Sent requests
-        const resSent = await api.get("/api/friend-request/sent");
-        setSentRequests(resSent.data.map(r => r.receiver._id.toString()));
+  try {
+    setLoading(true);
 
-        // 3️⃣ Received requests
-        const resReceived = await api.get("/api/friend-request/pending");
-        setReceivedRequests(resReceived.data.map(r => r.sender._id.toString()));
+    // 🔹 Fetch all necessary data concurrently
+    const [resUsers, resSent, resReceived, resFriends] = await Promise.all([
+      api.get("/api/user/all"),
+      api.get("/api/friend-request/sent"),
+      api.get("/api/friend-request/pending"),
+      api.get("/api/friend-request/friends"),
+    ]);
 
-        // 4️⃣ Accepted friends
-        const resFriends = await api.get("/api/friend-request/friends");
-        setFriends(resFriends.data.map(f => f._id.toString()));
-      } catch (err) {
-        console.error("Error fetching data:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    // 1️⃣ All users except self
+    const allUsers = resUsers.data.filter(u => u._id !== authUser._id);
+    setUsers(allUsers);
+
+    // 2️⃣ Sent friend requests
+    const sent = resSent.data.map(r => r.receiver._id.toString());
+    setSentRequests(sent);
+
+    // 3️⃣ Received friend requests
+    const received = resReceived.data.map(r => r.sender._id.toString());
+    setReceivedRequests(received);
+
+    // 4️⃣ Accepted friends
+    const accepted = resFriends.data.map(f => f._id.toString());
+    setFriends(accepted);
+
+  } catch (err) {
+    console.error("Error fetching friend data:", err);
+    // Optional: show toast notification
+    // toast.error("Failed to load friends. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
     fetchData();
   }, [authUser]);
