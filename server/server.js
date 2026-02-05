@@ -60,8 +60,8 @@ app.use("/api/message", require("./src/routes/messageRoutes"));
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "client/build")));
 
-  // catch-all for React Router (after API routes)
-  app.get("*", (req, res) => {
+  // ✅ Catch-all for React Router (fixed PathError)
+  app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, "client/build", "index.html"));
   });
 }
