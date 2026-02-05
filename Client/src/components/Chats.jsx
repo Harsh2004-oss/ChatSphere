@@ -51,10 +51,7 @@ export default function Chats() {
   useEffect(() => {
     const fetchFriends = async () => {
       try {
-        const res = await fetch(
-          "http://localhost:5000/api/friend-request/friends",
-          { credentials: "include" }
-        );
+ const res = await fetch(`${API_BASE}/api/friend-request/friends`, { credentials: "include" });
         const data = await res.json();
         const acceptedFriends = data.map((f) => ({
           id: f._id,
@@ -78,10 +75,8 @@ export default function Chats() {
       try {
         setMessages([]); // clear previous messages
 
-        const res = await fetch(
-          `http://localhost:5000/api/message/${selectedChat.id}`,
-          { credentials: "include" }
-        );
+       const res = await fetch(`${API_BASE}/api/message/${selectedChat.id}`, { credentials: "include" });
+
         const data = await res.json();
 
         // Remove duplicates
@@ -231,7 +226,7 @@ export default function Chats() {
     formData.append("to", selectedChat.id);
 
     try {
-      const res = await fetch("http://localhost:5000/api/message/upload", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/message/upload`, {
         method: "POST",
         body: formData,
         credentials: "include",
