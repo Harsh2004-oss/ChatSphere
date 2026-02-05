@@ -8,7 +8,7 @@ import {
   User,
   ChevronDown
 } from 'lucide-react';
-import '../styles/dashboard.css';
+import '../styles/Dashboard.css';
 import Chats from '../components/Chats';
 import Friends from '../components/Friends';
 
