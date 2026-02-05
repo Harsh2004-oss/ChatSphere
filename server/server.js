@@ -40,7 +40,7 @@ const clientDistPath = path.join(__dirname, "../Client/dist"); // adjust if need
 app.use(express.static(clientDistPath));
 
 // Catch-all for React Router
-app.get("*", (req, res) => {
+app.get("/*", (req, res) => {
   res.sendFile(path.join(clientDistPath, "index.html"));
 });
 
