@@ -21,12 +21,13 @@ app.use(cookieParser());
 
 // ✅ CORS for API routes + credentials
 const corsOptions = {
-  origin: process.env.CLIENT_URL,
+  origin: process.env.CLIENT_URL, // Vercel frontend
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // handle preflight
 
 /* =========================
    TEST ROUTE
@@ -49,9 +50,9 @@ app.use("/api/message", require("./src/routes/messageRoutes"));
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "client/build")));
 
-  // ✅ catch-all React route
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+  // catch-all for React Router
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "client/build", "index.html"));
   });
 }
 
@@ -120,11 +121,9 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     if (socket.userId && onlineUsers.has(socket.userId)) {
       onlineUsers.get(socket.userId).delete(socket.id);
-
       if (onlineUsers.get(socket.userId).size === 0) {
         onlineUsers.delete(socket.userId);
       }
-
       io.emit("online-users", Array.from(onlineUsers.keys()));
       console.log("🔴 User offline:", socket.userId);
     }
