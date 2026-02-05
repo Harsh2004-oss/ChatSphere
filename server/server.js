@@ -57,11 +57,10 @@ app.use("/api/message", messageRoutes);
 if (process.env.NODE_ENV === "production") {
   const clientDistPath = path.join(__dirnameResolved, "client", "dist");
 
-  // Serve static assets
   app.use(express.static(clientDistPath));
 
-  // SPA fallback (ignore API routes)
-  app.get(/^\/(?!api).*/, (req, res) => {
+  app.use((req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
     res.sendFile(path.join(clientDistPath, "index.html"));
   });
 }
