@@ -32,8 +32,7 @@ const corsOptions = {
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // handle preflight globally
+app.use(cors(corsOptions)); // Handles preflight automatically
 
 /* =========================
    TEST ROUTE
@@ -53,20 +52,15 @@ app.use("/api/message", messageRoutes);
 /* =========================
    SERVE REACT FRONTEND (PRODUCTION)
 ========================= */
-// remove this line
-// app.options("*", cors(corsOptions));
-
-// React frontend catch-all
 if (process.env.NODE_ENV === "production") {
   const clientBuildPath = path.join(__dirname, "client/build");
   app.use(express.static(clientBuildPath));
 
-  app.get("/*", (req, res) => {
-    if (req.path.startsWith("/api")) return res.status(404).send("Not found");
+  // React catch-all using regex
+  app.get(/^\/(?!api).*/, (req, res) => {
     res.sendFile(path.join(clientBuildPath, "index.html"));
   });
 }
-
 
 /* =========================
    SERVER + SOCKET.IO
