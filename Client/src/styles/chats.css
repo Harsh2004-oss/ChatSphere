@@ -408,6 +408,7 @@ body {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
   background-color: var(--bg-secondary);
+  color: #fff;
   font-size: var(--font-size-md);
   outline: none;
   transition: all var(--transition-fast);
@@ -459,6 +460,7 @@ body {
 }
 
 .EmojiPickerReact {
+
   box-shadow: var(--shadow-lg) !important;
   border-radius: var(--radius-md) !important;
 }
