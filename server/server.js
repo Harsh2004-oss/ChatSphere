@@ -20,25 +20,16 @@ app.use(cookieParser());
 
 // ✅ CORS for API routes + credentials
 const corsOptions = {
-  origin: process.env.CLIENT_URL, // FRONTEND URL (local or Vercel)
-  credentials: true,              // allow cookies/auth headers
+  origin: process.env.CLIENT_URL, // Vercel frontend
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
-
-// ✅ Handle OPTIONS preflight properly (fix Render & CORS crash)
-app.use((req, res, next) => {
-  if (req.method === "OPTIONS") {
-    res.header("Access-Control-Allow-Origin", process.env.CLIENT_URL);
-    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.header("Access-Control-Allow-Credentials", "true");
-    return res.sendStatus(204); // No Content
-  }
-  next();
-});
+app.options("*", cors(corsOptions)); // handle preflight
 
 /* =========================
-   TEST ROUTE for root
+   TEST ROUTE
 ========================= */
 app.get("/", (req, res) => {
   res.send("✅ ChatSphere backend is live!");
@@ -53,17 +44,24 @@ app.use("/api/friend-request", require("./src/routes/friendRequestRoutes"));
 app.use("/api/message", require("./src/routes/messageRoutes"));
 
 /* =========================
-   SERVER + SOCKET
+   SERVER + SOCKET.IO
 ========================= */
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: corsOptions, // use same CORS options for socket
+  cors: corsOptions,
 });
 
-/* =========================
-   ONLINE USERS
-========================= */
+// Map to track online users
 const onlineUsers = new Map();
+
+// Optional: Socket authentication
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) return next(); // allow guest connections
+  // TODO: verify JWT if needed
+  socket.userId = token; // store userId in socket
+  next();
+});
 
 io.on("connection", (socket) => {
   console.log("🔌 Socket connected:", socket.id);
@@ -104,7 +102,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Typing indicator
+  // Typing indicators
   socket.on("typing", ({ to }) => {
     if (onlineUsers.has(to)) {
       onlineUsers.get(to).forEach((socketId) => {
