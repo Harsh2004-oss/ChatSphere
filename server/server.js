@@ -26,6 +26,13 @@ app.use(
 );
 
 /* =========================
+   TEST ROUTE for root
+========================= */
+app.get("/", (req, res) => {
+  res.send("✅ ChatSphere backend is live!");
+});
+
+/* =========================
    ROUTES
 ========================= */
 app.use("/api/auth", require("./src/routes/auth.routes"));
@@ -55,12 +62,9 @@ io.on("connection", (socket) => {
   socket.on("user-online", (userId) => {
     socket.userId = userId;
 
-    if (!onlineUsers.has(userId)) {
-      onlineUsers.set(userId, new Set());
-    }
+    if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
     onlineUsers.get(userId).add(socket.id);
 
-    // Broadcast all online users
     io.emit("online-users", Array.from(onlineUsers.keys()));
     console.log("🟢 User online:", userId);
   });
@@ -132,3 +136,4 @@ mongoose
     });
   })
   .catch((err) => console.error("❌ MongoDB error:", err));
+z
