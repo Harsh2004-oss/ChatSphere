@@ -21,15 +21,12 @@ app.use(cookieParser());
 
 // ✅ CORS for API routes + credentials
 const corsOptions = {
-  origin: process.env.CLIENT_URL, // Frontend URL
+  origin: process.env.CLIENT_URL,
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
-
-// ✅ Handle OPTIONS preflight properly
-app.options("/*", cors(corsOptions));
 
 /* =========================
    TEST ROUTE
@@ -52,8 +49,9 @@ app.use("/api/message", require("./src/routes/messageRoutes"));
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "client/build")));
 
-  app.get("/*", (req, res) => {
-    res.sendFile(path.join(__dirname, "client/build", "index.html"));
+  // ✅ catch-all React route
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
   });
 }
 
@@ -62,9 +60,7 @@ if (process.env.NODE_ENV === "production") {
 ========================= */
 const server = http.createServer(app);
 
-const io = new Server(server, {
-  cors: corsOptions,
-});
+const io = new Server(server, { cors: corsOptions });
 
 // Map to track online users
 const onlineUsers = new Map();
@@ -72,7 +68,6 @@ const onlineUsers = new Map();
 io.on("connection", (socket) => {
   console.log("🔌 Socket connected:", socket.id);
 
-  // User comes online
   socket.on("user-online", (userId) => {
     socket.userId = userId;
     if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
@@ -82,7 +77,6 @@ io.on("connection", (socket) => {
     console.log("🟢 User online:", userId);
   });
 
-  // Send message
   socket.on("send-message", async (msg) => {
     const { from, to, text, file, fileType } = msg;
 
@@ -97,7 +91,6 @@ io.on("connection", (socket) => {
       });
 
       const payload = savedMessage.toObject();
-
       if (onlineUsers.has(to)) {
         onlineUsers.get(to).forEach((socketId) => {
           io.to(socketId).emit("receive-message", payload);
@@ -108,7 +101,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Typing indicators
   socket.on("typing", ({ to }) => {
     if (onlineUsers.has(to)) {
       onlineUsers.get(to).forEach((socketId) => {
@@ -125,7 +117,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Disconnect
   socket.on("disconnect", () => {
     if (socket.userId && onlineUsers.has(socket.userId)) {
       onlineUsers.get(socket.userId).delete(socket.id);
