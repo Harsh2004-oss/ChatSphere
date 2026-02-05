@@ -21,13 +21,13 @@ app.use(cookieParser());
 
 // ✅ CORS for API routes + credentials
 const corsOptions = {
-  origin: process.env.CLIENT_URL, // Vercel frontend
+  origin: process.env.CLIENT_URL, // frontend URL
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // handle preflight
+app.options("/*", cors(corsOptions)); // handle preflight for all routes
 
 /* =========================
    TEST ROUTE
@@ -51,7 +51,7 @@ if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "client/build")));
 
   // catch-all for React Router
-  app.get("*", (req, res) => {
+  app.get("/*", (req, res) => {
     res.sendFile(path.join(__dirname, "client/build", "index.html"));
   });
 }
