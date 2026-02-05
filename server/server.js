@@ -5,6 +5,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const http = require("http");
 const { Server } = require("socket.io");
+const path = require("path");
 require("dotenv").config();
 
 // 🔹 Models
@@ -20,23 +21,25 @@ app.use(cookieParser());
 
 // ✅ CORS for API routes + credentials
 const corsOptions = {
-  origin: process.env.CLIENT_URL, // Vercel frontend
+  origin: process.env.CLIENT_URL, // Frontend URL
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // handle preflight
+
+// ✅ Handle OPTIONS preflight properly
+app.options("/*", cors(corsOptions));
 
 /* =========================
    TEST ROUTE
 ========================= */
-app.get("/", (req, res) => {
+app.get("/api", (req, res) => {
   res.send("✅ ChatSphere backend is live!");
 });
 
 /* =========================
-   ROUTES
+   API ROUTES
 ========================= */
 app.use("/api/auth", require("./src/routes/auth.routes"));
 app.use("/api/user", require("./src/routes/user.routes"));
@@ -44,24 +47,27 @@ app.use("/api/friend-request", require("./src/routes/friendRequestRoutes"));
 app.use("/api/message", require("./src/routes/messageRoutes"));
 
 /* =========================
+   SERVE REACT FRONTEND (PRODUCTION)
+========================= */
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.join(__dirname, "client/build")));
+
+  app.get("/*", (req, res) => {
+    res.sendFile(path.join(__dirname, "client/build", "index.html"));
+  });
+}
+
+/* =========================
    SERVER + SOCKET.IO
 ========================= */
 const server = http.createServer(app);
+
 const io = new Server(server, {
   cors: corsOptions,
 });
 
 // Map to track online users
 const onlineUsers = new Map();
-
-// Optional: Socket authentication
-io.use((socket, next) => {
-  const token = socket.handshake.auth.token;
-  if (!token) return next(); // allow guest connections
-  // TODO: verify JWT if needed
-  socket.userId = token; // store userId in socket
-  next();
-});
 
 io.on("connection", (socket) => {
   console.log("🔌 Socket connected:", socket.id);
