@@ -53,16 +53,20 @@ app.use("/api/message", messageRoutes);
 /* =========================
    SERVE REACT FRONTEND (PRODUCTION)
 ========================= */
+// remove this line
+// app.options("*", cors(corsOptions));
+
+// React frontend catch-all
 if (process.env.NODE_ENV === "production") {
   const clientBuildPath = path.join(__dirname, "client/build");
   app.use(express.static(clientBuildPath));
 
-  // ⚡ Catch-all for frontend routes (replace app.get('*'))
-  app.use((req, res, next) => {
-    if (req.path.startsWith("/api")) return next(); // skip API
+  app.get("/*", (req, res) => {
+    if (req.path.startsWith("/api")) return res.status(404).send("Not found");
     res.sendFile(path.join(clientBuildPath, "index.html"));
   });
 }
+
 
 /* =========================
    SERVER + SOCKET.IO
