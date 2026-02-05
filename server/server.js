@@ -16,10 +16,12 @@ const app = express();
 ========================= */
 app.use(express.json());
 app.use(cookieParser());
+
+// ✅ CORS for API routes
 app.use(
   cors({
-     origin: process.env.CLIENT_URL, // <- your Vercel frontend URL
-  credentials: true,       
+    origin: process.env.CLIENT_URL, // FRONTEND URL (local or Vercel)
+    credentials: true,              // allow cookies/auth headers
   })
 );
 
@@ -37,24 +39,19 @@ app.use("/api/message", require("./src/routes/messageRoutes"));
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "https://chat-sphere-6l9f.vercel.app/",
+    origin: process.env.CLIENT_URL, // same frontend URL for sockets
     credentials: true,
   },
 });
 
 /* =========================
    ONLINE USERS
-   Map<userId, Set<socketId>>
-   Allows multiple devices per user
 ========================= */
 const onlineUsers = new Map();
 
 io.on("connection", (socket) => {
   console.log("🔌 Socket connected:", socket.id);
 
-  /* =========================
-     USER ONLINE
-  ========================== */
   socket.on("user-online", (userId) => {
     socket.userId = userId;
 
@@ -68,10 +65,6 @@ io.on("connection", (socket) => {
     console.log("🟢 User online:", userId);
   });
 
-  /* =========================
-     SEND MESSAGE
-     → Only send to receiver sockets
-  ========================== */
   socket.on("send-message", async (msg) => {
     const { from, to, text, file, fileType } = msg;
 
@@ -87,22 +80,16 @@ io.on("connection", (socket) => {
 
       const payload = savedMessage.toObject();
 
-      // 🔹 Send to RECEIVER (all their sockets)
       if (onlineUsers.has(to)) {
         onlineUsers.get(to).forEach((socketId) => {
           io.to(socketId).emit("receive-message", payload);
         });
       }
-
-      // ✅ Do NOT send back to sender — sender already adds locally
     } catch (err) {
       console.error("❌ Message save error:", err);
     }
   });
 
-  /* =========================
-     TYPING INDICATOR
-  ========================== */
   socket.on("typing", ({ to }) => {
     if (onlineUsers.has(to)) {
       onlineUsers.get(to).forEach((socketId) => {
@@ -119,9 +106,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  /* =========================
-     DISCONNECT
-  ========================== */
   socket.on("disconnect", () => {
     if (socket.userId && onlineUsers.has(socket.userId)) {
       onlineUsers.get(socket.userId).delete(socket.id);
@@ -143,8 +127,8 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("✅ MongoDB connected");
-    server.listen(5000, () => {
-      console.log("🚀 Server running on port 5000");
+    server.listen(process.env.PORT || 5000, () => {
+      console.log(`🚀 Server running on port ${process.env.PORT || 5000}`);
     });
   })
   .catch((err) => console.error("❌ MongoDB error:", err));
