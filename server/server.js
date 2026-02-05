@@ -1,3 +1,4 @@
+// server.js
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -17,15 +18,24 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
-// ✅ CORS configuration (supports preflight requests)
+// ✅ CORS for API routes + credentials
 const corsOptions = {
-  origin: process.env.CLIENT_URL, // Frontend URL (local or Vercel)
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true, // allow cookies/auth headers
+  origin: process.env.CLIENT_URL, // FRONTEND URL (local or Vercel)
+  credentials: true,              // allow cookies/auth headers
 };
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // handle preflight requests
+
+// ✅ Handle OPTIONS preflight properly (fix Render & CORS crash)
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    res.header("Access-Control-Allow-Origin", process.env.CLIENT_URL);
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.header("Access-Control-Allow-Credentials", "true");
+    return res.sendStatus(204); // No Content
+  }
+  next();
+});
 
 /* =========================
    TEST ROUTE for root
@@ -35,7 +45,7 @@ app.get("/", (req, res) => {
 });
 
 /* =========================
-   API ROUTES
+   ROUTES
 ========================= */
 app.use("/api/auth", require("./src/routes/auth.routes"));
 app.use("/api/user", require("./src/routes/user.routes"));
@@ -43,23 +53,22 @@ app.use("/api/friend-request", require("./src/routes/friendRequestRoutes"));
 app.use("/api/message", require("./src/routes/messageRoutes"));
 
 /* =========================
-   SERVER + SOCKET.IO
+   SERVER + SOCKET
 ========================= */
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: corsOptions,
+  cors: corsOptions, // use same CORS options for socket
 });
 
 /* =========================
    ONLINE USERS
-   Map<userId, Set<socketId>>
 ========================= */
 const onlineUsers = new Map();
 
 io.on("connection", (socket) => {
   console.log("🔌 Socket connected:", socket.id);
 
-  // User online
+  // User comes online
   socket.on("user-online", (userId) => {
     socket.userId = userId;
     if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
@@ -72,6 +81,7 @@ io.on("connection", (socket) => {
   // Send message
   socket.on("send-message", async (msg) => {
     const { from, to, text, file, fileType } = msg;
+
     try {
       const savedMessage = await Message.create({
         from,
@@ -81,6 +91,7 @@ io.on("connection", (socket) => {
         fileType,
         createdAt: new Date(),
       });
+
       const payload = savedMessage.toObject();
 
       if (onlineUsers.has(to)) {
@@ -96,17 +107,17 @@ io.on("connection", (socket) => {
   // Typing indicator
   socket.on("typing", ({ to }) => {
     if (onlineUsers.has(to)) {
-      onlineUsers.get(to).forEach((socketId) =>
-        io.to(socketId).emit("typing", { from: socket.userId })
-      );
+      onlineUsers.get(to).forEach((socketId) => {
+        io.to(socketId).emit("typing", { from: socket.userId });
+      });
     }
   });
 
   socket.on("stop-typing", ({ to }) => {
     if (onlineUsers.has(to)) {
-      onlineUsers.get(to).forEach((socketId) =>
-        io.to(socketId).emit("stop-typing", { from: socket.userId })
-      );
+      onlineUsers.get(to).forEach((socketId) => {
+        io.to(socketId).emit("stop-typing", { from: socket.userId });
+      });
     }
   });
 
@@ -114,7 +125,10 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     if (socket.userId && onlineUsers.has(socket.userId)) {
       onlineUsers.get(socket.userId).delete(socket.id);
-      if (onlineUsers.get(socket.userId).size === 0) onlineUsers.delete(socket.userId);
+
+      if (onlineUsers.get(socket.userId).size === 0) {
+        onlineUsers.delete(socket.userId);
+      }
 
       io.emit("online-users", Array.from(onlineUsers.keys()));
       console.log("🔴 User offline:", socket.userId);
@@ -123,7 +137,7 @@ io.on("connection", (socket) => {
 });
 
 /* =========================
-   CONNECT DB + START SERVER
+   DB + SERVER START
 ========================= */
 mongoose
   .connect(process.env.MONGO_URI)
