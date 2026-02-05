@@ -55,14 +55,18 @@ app.use("/api/message", messageRoutes);
 /* =========================
    SERVE REACT FRONTEND (PRODUCTION)
 ========================= */
+/* =========================
+   SERVE REACT FRONTEND (PRODUCTION)
+========================= */
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "client/build")));
 
-  // Catch-all route for React Router
-  app.get("*", (req, res) => {
+  // Catch-all for React Router (exclude /api routes)
+  app.get(/^(?!\/api).*$/, (req, res) => {
     res.sendFile(path.join(__dirname, "client/build", "index.html"));
   });
 }
+
 
 /* =========================
    SERVER + SOCKET.IO
