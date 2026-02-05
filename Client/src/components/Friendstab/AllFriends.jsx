@@ -3,7 +3,7 @@ import { Search, UserPlus, Eye, Check, Clock, X } from "lucide-react";
 import api from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import socket from "../../lib/socket";
-import "../../styles/allfriends.css";
+import "../../styles/Allfriends.css";
 
 export default function AllFriends({ searchQuery }) {
   const { authUser, loading: authLoading } = useAuth();
