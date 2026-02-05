@@ -58,18 +58,13 @@ app.use("/api/message", require("./src/routes/messageRoutes"));
    SERVE REACT FRONTEND (PRODUCTION)
 ========================= */
 if (process.env.NODE_ENV === "production") {
-  // This points to Vite's dist folder
-  const clientDistPath = path.join(__dirname, "../Client/dist");
+  app.use(express.static(path.join(__dirname, "client/build")));
 
-  // Serve static files from dist
-  app.use(express.static(clientDistPath));
-
-  // Catch-all route for React Router
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(clientDistPath, "index.html"));
+  // ✅ Catch-all for React Router (fixed PathError)
+  app.get(/.*/, (req, res) => {
+    res.sendFile(path.join(__dirname, "client/build", "index.html"));
   });
 }
-
 
 /* =========================
    SERVER + SOCKET.IO
