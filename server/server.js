@@ -27,7 +27,17 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
-app.options("/*", cors(corsOptions)); // handle preflight for all routes
+
+// Handle preflight for all routes safely
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    res.header("Access-Control-Allow-Origin", process.env.CLIENT_URL);
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 /* =========================
    TEST ROUTE
@@ -50,8 +60,8 @@ app.use("/api/message", require("./src/routes/messageRoutes"));
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "client/build")));
 
-  // catch-all for React Router
-  app.get("/*", (req, res) => {
+  // catch-all for React Router (after API routes)
+  app.get("*", (req, res) => {
     res.sendFile(path.join(__dirname, "client/build", "index.html"));
   });
 }
