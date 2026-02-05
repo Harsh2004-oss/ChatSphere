@@ -18,6 +18,7 @@ const friendRoutes = require("./src/routes/friendRequestRoutes");
 const messageRoutes = require("./src/routes/messageRoutes");
 
 const app = express();
+const __dirnameResolved = path.resolve();
 
 /* =========================
    MIDDLEWARE
@@ -32,7 +33,8 @@ const corsOptions = {
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
-app.use(cors(corsOptions)); // Handles preflight automatically
+
+app.use(cors(corsOptions));
 
 /* =========================
    TEST ROUTE
@@ -50,15 +52,17 @@ app.use("/api/friend-request", friendRoutes);
 app.use("/api/message", messageRoutes);
 
 /* =========================
-   SERVE REACT FRONTEND (PRODUCTION)
+   SERVE VITE FRONTEND (PRODUCTION)
 ========================= */
 if (process.env.NODE_ENV === "production") {
-  const clientBuildPath = path.join(__dirname, "client/build");
-  app.use(express.static(clientBuildPath));
+  const clientDistPath = path.join(__dirnameResolved, "client", "dist");
 
-  // React catch-all using regex
+  // Serve static assets
+  app.use(express.static(clientDistPath));
+
+  // SPA fallback (ignore API routes)
   app.get(/^\/(?!api).*/, (req, res) => {
-    res.sendFile(path.join(clientBuildPath, "index.html"));
+    res.sendFile(path.join(clientDistPath, "index.html"));
   });
 }
 
@@ -75,29 +79,25 @@ io.on("connection", (socket) => {
 
   socket.on("user-online", (userId) => {
     socket.userId = userId;
-    if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
-    onlineUsers.get(userId).add(socket.id);
 
+    if (!onlineUsers.has(userId)) {
+      onlineUsers.set(userId, new Set());
+    }
+
+    onlineUsers.get(userId).add(socket.id);
     io.emit("online-users", Array.from(onlineUsers.keys()));
-    console.log("🟢 User online:", userId);
   });
 
   socket.on("send-message", async (msg) => {
-    const { from, to, text, file, fileType } = msg;
     try {
       const savedMessage = await Message.create({
-        from,
-        to,
-        text,
-        file,
-        fileType,
+        ...msg,
         createdAt: new Date(),
       });
 
-      const payload = savedMessage.toObject();
-      if (onlineUsers.has(to)) {
-        onlineUsers.get(to).forEach((socketId) => {
-          io.to(socketId).emit("receive-message", payload);
+      if (onlineUsers.has(msg.to)) {
+        onlineUsers.get(msg.to).forEach((socketId) => {
+          io.to(socketId).emit("receive-message", savedMessage);
         });
       }
     } catch (err) {
@@ -107,16 +107,16 @@ io.on("connection", (socket) => {
 
   socket.on("typing", ({ to }) => {
     if (onlineUsers.has(to)) {
-      onlineUsers.get(to).forEach((socketId) =>
-        io.to(socketId).emit("typing", { from: socket.userId })
+      onlineUsers.get(to).forEach((id) =>
+        io.to(id).emit("typing", { from: socket.userId })
       );
     }
   });
 
   socket.on("stop-typing", ({ to }) => {
     if (onlineUsers.has(to)) {
-      onlineUsers.get(to).forEach((socketId) =>
-        io.to(socketId).emit("stop-typing", { from: socket.userId })
+      onlineUsers.get(to).forEach((id) =>
+        io.to(id).emit("stop-typing", { from: socket.userId })
       );
     }
   });
@@ -124,10 +124,10 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     if (socket.userId && onlineUsers.has(socket.userId)) {
       onlineUsers.get(socket.userId).delete(socket.id);
-      if (onlineUsers.get(socket.userId).size === 0) onlineUsers.delete(socket.userId);
-
+      if (onlineUsers.get(socket.userId).size === 0) {
+        onlineUsers.delete(socket.userId);
+      }
       io.emit("online-users", Array.from(onlineUsers.keys()));
-      console.log("🔴 User offline:", socket.userId);
     }
   });
 });
