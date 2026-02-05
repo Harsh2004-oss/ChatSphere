@@ -11,6 +11,12 @@ require("dotenv").config();
 // 🔹 Models
 const Message = require("./src/models/Message");
 
+// 🔹 Routes
+const authRoutes = require("./src/routes/auth.routes");
+const userRoutes = require("./src/routes/user.routes");
+const friendRoutes = require("./src/routes/friendRequestRoutes");
+const messageRoutes = require("./src/routes/messageRoutes");
+
 const app = express();
 
 /* =========================
@@ -19,7 +25,7 @@ const app = express();
 app.use(express.json());
 app.use(cookieParser());
 
-// ✅ CORS for API routes + credentials
+// ✅ CORS configuration
 const corsOptions = {
   origin: process.env.CLIENT_URL || "*", // frontend URL
   credentials: true,
@@ -29,15 +35,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // ✅ Handle preflight OPTIONS requests globally
-app.use((req, res, next) => {
-  if (req.method === "OPTIONS") {
-    res.header("Access-Control-Allow-Origin", process.env.CLIENT_URL || "*");
-    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    return res.sendStatus(200);
-  }
-  next();
-});
+app.options("*", cors(corsOptions));
 
 /* =========================
    TEST ROUTE
@@ -49,10 +47,10 @@ app.get("/api", (req, res) => {
 /* =========================
    API ROUTES
 ========================= */
-app.use("/api/auth", require("./src/routes/auth.routes"));
-app.use("/api/user", require("./src/routes/user.routes"));
-app.use("/api/friend-request", require("./src/routes/friendRequestRoutes"));
-app.use("/api/message", require("./src/routes/messageRoutes"));
+app.use("/api/auth", authRoutes);
+app.use("/api/user", userRoutes);
+app.use("/api/friend-request", friendRoutes);
+app.use("/api/message", messageRoutes);
 
 /* =========================
    SERVE REACT FRONTEND (PRODUCTION)
@@ -60,8 +58,8 @@ app.use("/api/message", require("./src/routes/messageRoutes"));
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "client/build")));
 
-  // ✅ Catch-all for React Router (fixed PathError)
-  app.get(/.*/, (req, res) => {
+  // Catch-all route for React Router
+  app.get("*", (req, res) => {
     res.sendFile(path.join(__dirname, "client/build", "index.html"));
   });
 }
@@ -70,7 +68,6 @@ if (process.env.NODE_ENV === "production") {
    SERVER + SOCKET.IO
 ========================= */
 const server = http.createServer(app);
-
 const io = new Server(server, { cors: corsOptions });
 
 // Map to track online users
@@ -102,9 +99,9 @@ io.on("connection", (socket) => {
 
       const payload = savedMessage.toObject();
       if (onlineUsers.has(to)) {
-        onlineUsers.get(to).forEach((socketId) => {
-          io.to(socketId).emit("receive-message", payload);
-        });
+        onlineUsers.get(to).forEach((socketId) =>
+          io.to(socketId).emit("receive-message", payload)
+        );
       }
     } catch (err) {
       console.error("❌ Message save error:", err);
@@ -113,26 +110,25 @@ io.on("connection", (socket) => {
 
   socket.on("typing", ({ to }) => {
     if (onlineUsers.has(to)) {
-      onlineUsers.get(to).forEach((socketId) => {
-        io.to(socketId).emit("typing", { from: socket.userId });
-      });
+      onlineUsers.get(to).forEach((socketId) =>
+        io.to(socketId).emit("typing", { from: socket.userId })
+      );
     }
   });
 
   socket.on("stop-typing", ({ to }) => {
     if (onlineUsers.has(to)) {
-      onlineUsers.get(to).forEach((socketId) => {
-        io.to(socketId).emit("stop-typing", { from: socket.userId });
-      });
+      onlineUsers.get(to).forEach((socketId) =>
+        io.to(socketId).emit("stop-typing", { from: socket.userId })
+      );
     }
   });
 
   socket.on("disconnect", () => {
     if (socket.userId && onlineUsers.has(socket.userId)) {
       onlineUsers.get(socket.userId).delete(socket.id);
-      if (onlineUsers.get(socket.userId).size === 0) {
-        onlineUsers.delete(socket.userId);
-      }
+      if (onlineUsers.get(socket.userId).size === 0) onlineUsers.delete(socket.userId);
+
       io.emit("online-users", Array.from(onlineUsers.keys()));
       console.log("🔴 User offline:", socket.userId);
     }
@@ -140,7 +136,7 @@ io.on("connection", (socket) => {
 });
 
 /* =========================
-   DB + SERVER START
+   CONNECT DB + START SERVER
 ========================= */
 mongoose
   .connect(process.env.MONGO_URI)
