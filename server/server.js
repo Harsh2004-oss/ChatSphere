@@ -27,15 +27,13 @@ app.use(cookieParser());
 
 // ✅ CORS configuration
 const corsOptions = {
-  origin: process.env.CLIENT_URL || "*", // frontend URL
+  origin: process.env.CLIENT_URL || "*",
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
-
-// ✅ Handle preflight OPTIONS requests globally
-app.options("*", cors(corsOptions));
+app.options("*", cors(corsOptions)); // handle preflight globally
 
 /* =========================
    TEST ROUTE
@@ -55,18 +53,16 @@ app.use("/api/message", messageRoutes);
 /* =========================
    SERVE REACT FRONTEND (PRODUCTION)
 ========================= */
-/* =========================
-   SERVE REACT FRONTEND (PRODUCTION)
-========================= */
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "client/build")));
+  const clientBuildPath = path.join(__dirname, "client/build");
+  app.use(express.static(clientBuildPath));
 
-  // Catch-all for React Router (exclude /api routes)
-  app.get(/^(?!\/api).*$/, (req, res) => {
-    res.sendFile(path.join(__dirname, "client/build", "index.html"));
+  // ⚡ Catch-all for frontend routes (replace app.get('*'))
+  app.use((req, res, next) => {
+    if (req.path.startsWith("/api")) return next(); // skip API
+    res.sendFile(path.join(clientBuildPath, "index.html"));
   });
 }
-
 
 /* =========================
    SERVER + SOCKET.IO
@@ -74,7 +70,6 @@ if (process.env.NODE_ENV === "production") {
 const server = http.createServer(app);
 const io = new Server(server, { cors: corsOptions });
 
-// Map to track online users
 const onlineUsers = new Map();
 
 io.on("connection", (socket) => {
@@ -103,9 +98,9 @@ io.on("connection", (socket) => {
 
       const payload = savedMessage.toObject();
       if (onlineUsers.has(to)) {
-        onlineUsers.get(to).forEach((socketId) =>
-          io.to(socketId).emit("receive-message", payload)
-        );
+        onlineUsers.get(to).forEach((socketId) => {
+          io.to(socketId).emit("receive-message", payload);
+        });
       }
     } catch (err) {
       console.error("❌ Message save error:", err);
